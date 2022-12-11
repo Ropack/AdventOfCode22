@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Linq;
-using System.Numerics;
+﻿using System.Numerics;
 
 var input = "input.txt";
 //var input = "test-input.txt";
@@ -35,7 +33,6 @@ foreach (var line in lines)
         var operand = expression.Split(" ")[1];
 
         BigInteger OperationFunc(BigInteger a, BigInteger b) => operation == "+" ? a + b : a * b;
-        BigInteger OperationFuncBig(BigInteger a, BigInteger b) => operation == "+" ? a + b : a * b;
 
         currentMonkey.Operation = x =>
         {
@@ -51,15 +48,6 @@ foreach (var line in lines)
                 }
             }
 
-            //if (operand != "old")
-            //{
-            //    x.Current = OperationFuncBig(x.Current, BigInteger.Parse(operand));
-            //}
-            //else
-            //{
-            //    x.Current = OperationFuncBig(x.Current, x.Current);
-            //}
-
             return x;
         };
     }
@@ -71,11 +59,6 @@ foreach (var line in lines)
         {
             var isDivisible = x.Dictionary[divisibleBy] % divisibleBy == 0;
 
-            if (isDivisible != (x.Current % divisibleBy == 0))
-            {
-                Debugger.Break();
-            }
-
             foreach (var dictionaryKey in x.Dictionary.Keys)
             {
                 if (x.Dictionary[dictionaryKey] % dictionaryKey == 0)
@@ -84,14 +67,7 @@ foreach (var line in lines)
                 }
             }
 
-
-            if (isDivisible)
-            {
-                //x.Dictionary[divisibleBy] = 0;
-                return true;
-            }
-
-            return false;
+            return isDivisible;
         };
     }
 
@@ -115,12 +91,7 @@ for (int i = 0; i < 10000; i++)
         {
             var newValue = monkey.Operation(monkeyItem);
             monkey.InspectionCounter++;
-
-            //foreach (var dictionaryKey in newValue.Dictionary.Keys)
-            //{
-            //    newValue.Dictionary[dictionaryKey] /= 3;
-            //}
-
+            
             var target = monkey.Test(newValue) ? monkey.TargetWhenTrue : monkey.TargetWhenFalse;
             monkeys.Single(x => x.Id == target).Items.Add(newValue);
         }
