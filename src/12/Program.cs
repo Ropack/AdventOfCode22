@@ -76,87 +76,49 @@ Console.WriteLine(list.Min());
         var currentLength = item.currentLength;
         var current = map[x, y];
 
+        visited1[x, y] = currentLength;
+        if (map[x, y] == 27)
+        {
+            Logger.Log($"Found end, returning {currentLength}");
+            continue;
+        }
+
         {
             //right
             var newX = x + 1;
             var newY = y;
             if (x < sizeX - 1 && current > map[newX, newY] - 2 && visited1[newX, newY] > currentLength + 1)
             {
-                //Logger.Log($"Found shorted path to {newX} {newY}. Updating from {visited1[newX, newY]} to {currentLength + 1}");
-                visited1[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    continue;
-                    //return currentLength + 1;
-                }
-
                 stack.Push((newX, newY, currentLength + 1));
             }
         }
-
         {
             // left
             var newX = x - 1;
             var newY = y;
             if (x > 0 && current > map[newX, newY] - 2 && visited1[newX, newY] > currentLength + 1)
             {
-                //Logger.Log($"Found shorted path to {newX} {newY}. Updating from {visited1[newX, newY]} to {currentLength + 1}");
-                visited1[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    continue;
-                    //return currentLength + 1;
-                }
-
                 stack.Push((newX, newY, currentLength + 1));
             }
         }
-
-
         {
             // bottom
             var newX = x;
             var newY = y + 1;
             if (y < sizeY - 1 && current > map[newX, newY] - 2 && visited1[newX, newY] > currentLength + 1)
             {
-                //Logger.Log($"Found shorted path to {newX} {newY}. Updating from {visited1[newX, newY]} to {currentLength + 1}");
-                visited1[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    continue;
-                    //return currentLength + 1;
-                }
-
                 stack.Push((newX, newY, currentLength + 1));
             }
         }
-
         {
             // up
             var newX = x;
             var newY = y - 1;
             if (y > 0 && current > map[newX, newY] - 2 && visited1[newX, newY] > currentLength + 1)
             {
-                //Logger.Log($"Found shorted path to {newX} {newY}. Updating from {visited1[newX, newY]} to {currentLength + 1}");
-                visited1[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    continue;
-                    //return currentLength + 1;
-                }
-
                 stack.Push((newX, newY, currentLength + 1));
             }
         }
-
-
-        //Logger.Log($"Returning {results.Min()}");
-        //return results.Min();
-        //Logger.Log($"Number of unexpanded nodes {visited1.Cast<int>().Count(x => x == int.MaxValue)}");
     }
 
     return (visited1[endX, endY], numberOfExpandedNodes);
@@ -172,56 +134,11 @@ Console.WriteLine(list.Min());
     {
         numberOfExpandedNodes++;
         var current = map[x, y];
-
+        visited[x, y] = currentLength;
+        if (map[x, y] == 27)
         {
-            //right
-            var newX = x + 1;
-            var newY = y;
-            if (x < sizeX - 1 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
-            {
-                visited[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    return currentLength + 1;
-                }
-
-                F(newX, newY, currentLength + 1);
-            }
-        }
-
-        {
-            // left
-            var newX = x - 1;
-            var newY = y;
-            if (x > 0 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
-            {
-                visited[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    return currentLength + 1;
-                }
-
-                F(newX, newY, currentLength + 1);
-            }
-        }
-
-        {
-            // bottom
-            var newX = x;
-            var newY = y + 1;
-            if (y < sizeY - 1 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
-            {
-                visited[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    return currentLength + 1;
-                }
-
-                F(newX, newY, currentLength + 1);
-            }
+            Logger.Log($"Found end, returning {currentLength}");
+            return currentLength;
         }
 
         {
@@ -230,16 +147,37 @@ Console.WriteLine(list.Min());
             var newY = y - 1;
             if (y > 0 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
             {
-                visited[newX, newY] = currentLength + 1;
-                if (map[newX, newY] == 27)
-                {
-                    Logger.Log($"Found end, returning {currentLength + 1}");
-                    return currentLength + 1;
-                }
-
                 F(newX, newY, currentLength + 1);
             }
         }
+        {
+            // bottom
+            var newX = x;
+            var newY = y + 1;
+            if (y < sizeY - 1 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
+            {
+                F(newX, newY, currentLength + 1);
+            }
+        }
+        {
+            // left
+            var newX = x - 1;
+            var newY = y;
+            if (x > 0 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
+            {
+                F(newX, newY, currentLength + 1);
+            }
+        }
+        {
+            //right
+            var newX = x + 1;
+            var newY = y;
+            if (x < sizeX - 1 && current > map[newX, newY] - 2 && visited[newX, newY] > currentLength + 1)
+            {
+                F(newX, newY, currentLength + 1);
+            }
+        }
+
 
         return 0;
     }
@@ -251,28 +189,18 @@ Console.WriteLine(list.Min());
     bool IsInBounds(int x, int y) => x < sizeX && y < sizeY && x >= 0 && y >= 0;
 
     var visited = new bool[sizeX, sizeY];
-    visited[startX, startY] = true;
 
     var q = new Queue<(int x, int y, int currentLength)>();
     q.Enqueue((startX, startY, 0));
 
-    int? Search(int x, int y, int current, int currentLength)
+    void CheckAndEnqueue(int x, int y, int current, int currentLength)
     {
         if (IsInBounds(x, y) && current > map[x, y] - 2 && !visited[x, y])
         {
-            visited[x, y] = true;
-            var sum = currentLength + 1;
-            if (IsEnd(x, y))
-            {
-                return sum;
-            }
-
-            q.Enqueue((x, y, sum));
+            q.Enqueue((x, y, currentLength + 1));
         }
-
-        return null;
     }
-    
+
     var numberOfExpandedNodes = 0;
     while (q.TryDequeue(out var item))
     {
@@ -280,49 +208,44 @@ Console.WriteLine(list.Min());
         var x = item.x;
         var y = item.y;
         var current = map[x, y];
+        var currentLength = item.currentLength;
+
+        if (visited[x, y])
+        {
+            continue;
+        }
+        visited[x, y] = true;
+        if (IsEnd(x, y))
+        {
+            return (currentLength, numberOfExpandedNodes);
+        }
 
         //right
         {
             var newX = x + 1;
             var newY = y;
-            var found = Search(newX, newY, current, item.currentLength);
-            if (found != null)
-            {
-                return (found.Value, numberOfExpandedNodes);
-            }
+            CheckAndEnqueue(newX, newY, current, item.currentLength);
         }
 
         // left
         {
             var newX = x - 1;
             var newY = y;
-            var found = Search(newX, newY, current, item.currentLength);
-            if (found != null)
-            {
-                return (found.Value, numberOfExpandedNodes);
-            }
+            CheckAndEnqueue(newX, newY, current, item.currentLength);
         }
 
         // bottom
         {
             var newX = x;
             var newY = y + 1;
-            var found = Search(newX, newY, current, item.currentLength);
-            if (found != null)
-            {
-                return (found.Value, numberOfExpandedNodes);
-            }
+            CheckAndEnqueue(newX, newY, current, item.currentLength);
         }
 
         // up
         {
             var newX = x;
             var newY = y - 1;
-            var found = Search(newX, newY, current, item.currentLength);
-            if (found != null)
-            {
-                return (found.Value, numberOfExpandedNodes);
-            }
+            CheckAndEnqueue(newX, newY, current, item.currentLength);
         }
     }
 
