@@ -1,6 +1,12 @@
-﻿var input = "input.txt";
+﻿using System.Diagnostics;
+
+var input = "input.txt";
+
 //var input = "test-input.txt";
 var lines = File.ReadAllLines(input);
+
+var stopwatch = new Stopwatch();
+stopwatch.Start();
 
 var jet = lines[0];
 
@@ -45,9 +51,68 @@ var jetIndex = 0;
 var rockIndex = 0;
 var rockHeight = 0;
 var rockCounter = 0;
+var milionCounter = 0;
+var totalHeight = 0L;
+
+var dictionary = new Dictionary<(int, string, int), (string[], int)>();
 
 while (true)
 {
+    if (rockCounter == 1_000_000_000)
+    {
+        break;
+    }
+    if (map.Count > 1_100)
+    {
+        map.RemoveRange(0, 1_000);
+    }
+
+    if (rockCounter % 1_000_000 == 0)
+    {
+        milionCounter++;
+        Console.WriteLine($"{stopwatch.Elapsed}: {milionCounter} Millions!");
+    }
+
+    var terrainHash = GetTerrainHash();
+    //var previousTerrain = GetTopTerrain();
+    var appliedJet = "";
+    var droppedRock = rockIndex;
+    var initialHeight = map.Count;
+
+    var found = false;
+    for (int i = 3; i < 50; i++)
+    {
+        string lookahead;
+        if (jetIndex + i > jet.Length)
+        {
+            lookahead = jet.Substring(jetIndex, jet.Length - jetIndex)
+                + jet[..(i - (jet.Length - jetIndex))];
+        }
+        else
+        {
+            lookahead = jet.Substring(jetIndex, i);
+        }
+
+        if (dictionary.TryGetValue((terrainHash, lookahead, droppedRock), out var value))
+        {
+            map.AddRange(value.Item1);
+            totalHeight += value.Item2;
+            found = true;
+            jetIndex += lookahead.Length;
+            jetIndex %= jet.Length;
+            rockIndex++;
+            rockIndex %= rocks.Count;
+            rockCounter++;
+            break;
+        }
+    }
+
+    if (found)
+    {
+        //Console.WriteLine("Cache hit");
+        continue;
+    }
+
     map.AddRange(new[]
     {
         ".......",
@@ -74,7 +139,9 @@ while (true)
         {
             ShiftRight();
         }
-        
+
+        appliedJet += jet[jetIndex];
+
         jetIndex++;
         jetIndex %= jet.Length;
 
@@ -92,14 +159,19 @@ while (true)
         DrawMap();
     }
 
-    if (rockCounter == 2022)
-    {
-        break;
-    }
+    var addedHeight = map.Count - initialHeight;
+    totalHeight += addedHeight;
 
+
+    var terrain = GetTopTerrain();
+    dictionary.Add((terrainHash, appliedJet, droppedRock), (terrain, addedHeight));
 }
+
 DrawMap();
-Console.WriteLine(map.Count -1);
+Console.WriteLine(totalHeight);
+
+stopwatch.Stop();
+Console.WriteLine(stopwatch.Elapsed);
 
 void DrawMap()
 {
@@ -113,6 +185,43 @@ void DrawMap()
     //Console.WriteLine();
 
     //Thread.Sleep(200);
+}
+
+int GetTerrainHash()
+{
+    var terrain = new int[7];
+    for (int i = 0; i < 7; i++)
+    {
+        var depth = 0;
+        while (map[^(depth + 1)][i] != '#')
+        {
+            depth++;
+        }
+
+        terrain[i] = depth;
+    }
+
+    return (terrain[0], terrain[1], terrain[2], terrain[3], terrain[4], terrain[5], terrain[6]).GetHashCode();
+}
+
+string[] GetTopTerrain()
+{
+    var terrain = new int[7];
+    for (int i = 0; i < 7; i++)
+    {
+        var depth = 0;
+        while (map[^(depth + 1)][i] != '#')
+        {
+            depth++;
+        }
+
+        terrain[i] = depth;
+    }
+
+    var max = terrain.Max();
+    var result = new string[max + 1];
+    map.CopyTo(map.Count - max - 1, result, 0, max + 1);
+    return result;
 }
 
 bool MoveDown()
@@ -149,7 +258,7 @@ bool MoveDown()
         map[i - 1] = string.Join("", newRow);
         map[i] = map[i].Replace("@", ".");
     }
-    
+
     rockHeight--;
     if (!map.Last().Contains('#'))
     {
