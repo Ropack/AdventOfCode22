@@ -47,18 +47,29 @@ var rocks = new List<string[]>()
     }
 };
 
+//var targetRockCount = 2022;
+var targetRockCount = 1_000_000_000_000;
 var jetIndex = 0;
 var rockIndex = 0;
 var rockHeight = 0;
-var rockCounter = 0;
+var rockCounter = 0L;
 var milionCounter = 0;
 var totalHeight = 0L;
+var maxLookaheadLength = 10;
+var cacheHit = 0;
+var cacheMiss = 0;
+int? cachedTerrainHash = null;
+var isPruned = false;
+(int, int) loopBegin = (0, 0);
+var loopList = new List<(int terrainHash, string appliedJet, int droppedRock, string[] terrain, int topTerrainHash, int addedHeight, int rocksCount)>();
+var isLoopSkipApplied = false;
 
-var dictionary = new Dictionary<(int, string, int), (string[], int)>();
+var dictionary = new Dictionary<(int terrainHash, int droppedRock), Dictionary<string, (string[] terrain, int terrainHash, int addedHeight, int rocksCount, CounterWrapper counter)>>();
+var list = new List<(int terrainHash, string appliedJet, int droppedRock, string[] terrain, int topTerrainHash, int addedHeight)>();
 
 while (true)
 {
-    if (rockCounter == 1_000_000_000)
+    if (rockCounter == targetRockCount)
     {
         break;
     }
@@ -67,42 +78,114 @@ while (true)
         map.RemoveRange(0, 1_000);
     }
 
-    if (rockCounter % 1_000_000 == 0)
+    if (rockCounter % 1_000_000 == 0 && rockCounter != 0)
     {
         milionCounter++;
         Console.WriteLine($"{stopwatch.Elapsed}: {milionCounter} Millions!");
     }
 
-    var terrainHash = GetTerrainHash();
-    //var previousTerrain = GetTopTerrain();
+    var terrainHash = cachedTerrainHash ?? GetTerrainHash();
     var appliedJet = "";
     var droppedRock = rockIndex;
     var initialHeight = map.Count;
 
-    var found = false;
-    for (int i = 3; i < 50; i++)
+    if (!isLoopSkipApplied && (terrainHash, droppedRock) == loopBegin)
     {
-        string lookahead;
-        if (jetIndex + i > jet.Length)
+        var loopHeight = 0;
+        var loopRocksCount = 0;
+        foreach (var loopItem in loopList)
         {
-            lookahead = jet.Substring(jetIndex, jet.Length - jetIndex)
-                + jet[..(i - (jet.Length - jetIndex))];
-        }
-        else
-        {
-            lookahead = jet.Substring(jetIndex, i);
+            loopHeight += loopItem.addedHeight;
+            loopRocksCount += loopItem.rocksCount;
         }
 
-        if (dictionary.TryGetValue((terrainHash, lookahead, droppedRock), out var value))
+        var loopApplyCount = targetRockCount / loopRocksCount - rockCounter / loopRocksCount -1 ;
+
+        rockCounter += loopRocksCount * loopApplyCount;
+        totalHeight += loopHeight * loopApplyCount;
+
+        isLoopSkipApplied = true;
+    }
+
+    if (!isPruned && rockCounter > 1_000_000)
+    {
+        foreach (KeyValuePair<(int terrainHash, int droppedRock), Dictionary<string, (string[] terrain, int terrainHash, int addedHeight, int rocksCount, CounterWrapper counter)>> keyValuePair in dictionary)
         {
-            map.AddRange(value.Item1);
-            totalHeight += value.Item2;
+            var itemsToRemove = keyValuePair.Value.Where(x => x.Value.counter.Counter == 0).Select(x => x.Key);
+            foreach (var key in itemsToRemove)
+            {
+                keyValuePair.Value.Remove(key);
+            }
+        }
+
+        var keys = dictionary.Where(x => x.Value.Count == 0).Select(x => x.Key);
+        foreach (var key in keys)
+        {
+            dictionary.Remove(key);
+        }
+
+        isPruned = true;
+        loopBegin = (terrainHash, droppedRock);
+    }
+
+    var found = false;
+    if (dictionary.TryGetValue((terrainHash, droppedRock), out var innerDictionary))
+    {
+        var lengths = innerDictionary.Keys
+            .Select(x => x.Length)
+            .Where(x => x < targetRockCount - rockCounter)
+            .OrderByDescending(x => x)
+            .ToList();
+        //var max = lengths.Max();
+        //for (int i = Math.Min(maxLookaheadLength, max); i >= 3; i--)
+        foreach (var i in lengths)
+        {
+            string lookahead;
+            (string[] terrain, int terrainHash, int addedHeight, int rocksCount, CounterWrapper counter) value;
+            if (isPruned && innerDictionary.Count == 1)
+            {
+                value = innerDictionary.Single().Value;
+                lookahead = innerDictionary.Single().Key;
+            }
+            else
+            {
+                if (jetIndex + i > jet.Length)
+                {
+                    lookahead = jet.Substring(jetIndex, jet.Length - jetIndex)
+                                + jet[..(i - (jet.Length - jetIndex))];
+                }
+                else
+                {
+                    lookahead = jet.Substring(jetIndex, i);
+                }
+
+                if (!innerDictionary.TryGetValue(lookahead, out value)) continue;
+            }
+
+            map.AddRange(value.terrain);
+
+            if (!isPruned)
+            {
+                list.Add((terrainHash, lookahead, droppedRock, value.terrain, value.terrainHash, value.addedHeight));
+                if (list.Count > 100)
+                {
+                    list.RemoveAt(0);
+                }
+            }
+            else
+            {
+                loopList.Add((terrainHash, lookahead, droppedRock, value.terrain, value.terrainHash, value.addedHeight, value.rocksCount));
+            }
+            totalHeight += value.addedHeight;
             found = true;
             jetIndex += lookahead.Length;
             jetIndex %= jet.Length;
-            rockIndex++;
+            rockIndex += value.rocksCount;
             rockIndex %= rocks.Count;
-            rockCounter++;
+            rockCounter += value.rocksCount;
+            cachedTerrainHash = value.terrainHash;
+            value.counter.Counter++;
+
             break;
         }
     }
@@ -110,8 +193,12 @@ while (true)
     if (found)
     {
         //Console.WriteLine("Cache hit");
+        cacheHit++;
         continue;
     }
+
+    cacheMiss++;
+    cachedTerrainHash = null;
 
     map.AddRange(new[]
     {
@@ -162,9 +249,43 @@ while (true)
     var addedHeight = map.Count - initialHeight;
     totalHeight += addedHeight;
 
-
     var terrain = GetTopTerrain();
-    dictionary.Add((terrainHash, appliedJet, droppedRock), (terrain, addedHeight));
+    var topTerrainHash = GetTerrainHash();
+    if (!dictionary.TryAdd((terrainHash, droppedRock), new Dictionary<string, (string[] terrain, int terrainHash, int addedHeight, int rocksCount, CounterWrapper counter)>()
+        {
+            { appliedJet, (terrain, topTerrainHash, addedHeight, 1, new CounterWrapper()) }
+        }))
+    {
+        dictionary[(terrainHash, droppedRock)].TryAdd(appliedJet, (terrain, topTerrainHash, addedHeight, 1, new CounterWrapper()));
+    }
+
+    // This should have been an optimization, that take larger chunks of jet and add them to cache for later use
+    // It somehow works for test input, but does not for real input - results are the bigger the count of list items is taken (in condition of "for")
+
+    //var cumulativeAppliedJet = appliedJet;
+    //var cumulativeAddedHeight = addedHeight;
+    //var cumulativeRocksCount = 1;
+    //for (int i = list.Count - 1; i >= Math.Max(list.Count - 20, 0); i--)
+    //{
+    //    cumulativeAppliedJet = list[i].appliedJet + cumulativeAppliedJet;
+    //    if (cumulativeAppliedJet.Length > jet.Length)
+    //    {
+    //        break;
+    //    }
+    //    cumulativeAddedHeight += list[i].addedHeight;
+    //    cumulativeRocksCount++;
+    //    dictionary[(list[i].terrainHash, list[i].droppedRock)].TryAdd(cumulativeAppliedJet, (terrain, topTerrainHash, cumulativeAddedHeight, cumulativeRocksCount, new CounterWrapper()));
+    //    if (cumulativeAppliedJet.Length > maxLookaheadLength)
+    //    {
+    //        maxLookaheadLength = cumulativeAppliedJet.Length;
+    //    }
+    //}
+
+    //list.Add((terrainHash, appliedJet, droppedRock, terrain, topTerrainHash, addedHeight));
+    //if (list.Count > 100)
+    //{
+    //    list.RemoveAt(0);
+    //}
 }
 
 DrawMap();
@@ -366,5 +487,15 @@ void ShiftRight()
         }
 
         map[i] = string.Join("", newRow);
+    }
+}
+
+[DebuggerDisplay("{Counter}")]
+class CounterWrapper
+{
+    public int Counter { get; set; }
+    public override string ToString()
+    {
+        return Counter.ToString();
     }
 }
